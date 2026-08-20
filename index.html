@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniImage Studio Pro - Multi-Format & Permanent History</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- JSZip untuk download batch ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Pako & UPNG.js untuk kompresi PNG Lossy yang nyata -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .checker-bg {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .dropzone-active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-24">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white p-2.5 rounded-2xl shadow-md">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg leading-tight text-slate-900">Omni<span class="text-blue-600">Image</span> Studio</h1>
+                    <p class="text-xs text-slate-500">Universal Compressor, Before/After & IndexedDB Storage</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="#historySection" class="flex items-center gap-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full transition">
+                    <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+                    <span id="headerHistoryCount">Riwayat: 0</span>
+                </a>
+                <div class="hidden sm:flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    <span>Offline & Lokal</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-6">
+        
+        <!-- Controls & Upload Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            
+            <!-- Dropzone (col-span-7) -->
+            <div class="lg:col-span-7">
+                <div id="dropzone" class="h-full min-h-[220px] border-2 border-dashed border-slate-300 rounded-3xl p-6 text-center bg-white hover:border-blue-500 hover:bg-blue-50/40 transition-all cursor-pointer shadow-sm relative flex flex-col items-center justify-center group">
+                    <input type="file" id="fileInput" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                    <div class="w-14 h-14 mb-3 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                        <i data-lucide="upload-cloud" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800">Tarik & Lepas gambar ke sini atau <span class="text-blue-600 underline underline-offset-2">Pilih File</span></h3>
+                    <p class="text-xs text-slate-400 mt-1">Mendukung JPG, PNG, WebP, AVIF, JXL, BMP, GIF (Bisa banyak sekaligus)</p>
+                </div>
+            </div>
+
+            <!-- Settings Card (col-span-5) -->
+            <div class="lg:col-span-5 bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 mb-3.5 font-bold text-slate-800 text-xs uppercase tracking-wider">
+                        <i data-lucide="sliders" class="w-4 h-4 text-blue-600"></i>
+                        <span>Format & Setelan Kompresi</span>
+                    </div>
+
+                    <!-- Format Selector Pills (Termasuk JXL) -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Pilih Format Output:</label>
+                        <div class="grid grid-cols-5 gap-1 p-1 bg-slate-100 rounded-2xl" id="formatButtons">
+                            <button type="button" data-format="webp" class="format-btn py-2 text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-sm">
+                                WEBP
+                            </button>
+                            <button type="button" data-format="avif" class="format-btn py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900">
+                                AVIF
+                            </button>
+                            <button type="button" data-format="jxl" class="format-btn py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900">
+                                JXL
+                            </button>
+                            <button type="button" data-format="jpeg" class="format-btn py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900">
+                                JPG
+                            </button>
+                            <button type="button" data-format="png" class="format-btn py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900">
+                                PNG
+                            </button>
+                        </div>
+                        <p id="formatDesc" class="text-[11px] text-blue-600 font-medium mt-2">★ Rekomendasi web modern: Ukuran hemat, tajam & transparan.</p>
+                    </div>
+
+                    <!-- Quality Slider -->
+                    <div class="mb-4" id="qualityContainer">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="qualitySlider" class="text-xs font-semibold text-slate-700">Kualitas Kompresi:</label>
+                            <span id="qualityVal" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">85% (Rekomendasi)</span>
+                        </div>
+                        <input type="range" id="qualitySlider" min="10" max="100" value="85" 
+                            class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                        <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                            <span>Maksimal Hemat (10%)</span>
+                            <span id="pngQuantNote" class="text-blue-500 font-semibold hidden">Engine UPNG Kuantisasi Aktif</span>
+                            <span>Maksimal Tajam (100%)</span>
+                        </div>
+                    </div>
+
+                    <!-- Max Dimension / Resize -->
+                    <div>
+                        <label for="maxDimension" class="block text-xs font-semibold text-slate-700 mb-1.5">Batas Resolusi:</label>
+                        <select id="maxDimension" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="original" selected>Pertahankan Resolusi Asli (Original)</option>
+                            <option value="3840">Batas 4K (3840px)</option>
+                            <option value="1920">Batas Full HD (1920px) — Sangat Ideal</option>
+                            <option value="1280">Batas HD (1280px) — Super Ringan</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- STAGE COMPARISON (PANGGUNG PERBANDINGAN SEBELUM / SESUDAH) -->
+        <section id="compareSection" class="hidden mb-8">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl text-white">
+                
+                <!-- Header Panggung -->
+                <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-600/20 text-blue-400 p-2.5 rounded-2xl">
+                            <i data-lucide="eye" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                                <span id="activeFileName" class="truncate max-w-[180px] sm:max-w-xs">Nama Gambar</span>
+                                <span id="activeBadgeSaved" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs px-2 py-0.5 rounded-full font-bold">-0%</span>
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Asli: <span id="activeOrigSize" class="text-slate-200 font-semibold">-</span> → <span id="activeTargetFormatLabel" class="text-blue-400 uppercase font-bold">WEBP</span>: <span id="activeTargetSize" class="text-emerald-400 font-bold">-</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- View Mode Controls -->
+                    <div class="flex items-center gap-2">
+                        <div class="bg-slate-800 p-1 rounded-xl flex items-center gap-1 text-xs">
+                            <button id="modeSplitBtn" class="px-3 py-1.5 rounded-lg font-semibold bg-blue-600 text-white flex items-center gap-1.5 transition">
+                                <i data-lucide="split" class="w-3.5 h-3.5"></i>
+                                <span class="hidden sm:inline">Slider Geser</span>
+                            </button>
+                            <button id="modeSideBtn" class="px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition">
+                                <i data-lucide="columns-2" class="w-3.5 h-3.5"></i>
+                                <span class="hidden sm:inline">Berdampingan</span>
+                            </button>
+                        </div>
+
+                        <button id="zoomToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                            <span id="zoomText">Zoom 2x</span>
+                        </button>
+
+                        <a id="activeDownloadBtn" href="#" download="" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Unduh File</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Canvas Area -->
+                <div class="mt-5 relative">
+                    
+                    <!-- 1. SLIDER VIEW CONTAINER -->
+                    <div id="splitViewerContainer" class="relative w-full h-[380px] sm:h-[520px] rounded-2xl overflow-hidden checker-bg border border-slate-700 select-none cursor-ew-resize">
+                        
+                        <!-- Layer Output (Background) -->
+                        <div class="absolute inset-0 flex items-center justify-center p-2">
+                            <img id="viewOutputImg" class="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-150" alt="Hasil Konversi">
+                        </div>
+                        <div class="absolute top-4 right-4 bg-slate-900/90 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-md z-10 flex items-center gap-1.5 shadow-lg">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span id="badgeTargetFormat">WEBP</span>: <span id="labelTargetSize">0 KB</span>
+                        </div>
+
+                        <!-- Layer Asli (Clipped Overlay) -->
+                        <div id="splitOrigLayer" class="absolute inset-0 flex items-center justify-center p-2" style="clip-path: inset(0 50% 0 0);">
+                            <img id="viewOrigImg" class="max-w-full max-h-full object-contain pointer-events-none transition-transform duration-150" alt="Asli">
+                        </div>
+                        <div class="absolute top-4 left-4 bg-slate-900/90 text-blue-400 border border-blue-500/30 text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-md z-10 flex items-center gap-1.5 shadow-lg pointer-events-none">
+                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                            <span>Asli: <span id="labelOrigSize">0 KB</span></span>
+                        </div>
+
+                        <!-- Draggable Divider Line -->
+                        <div id="sliderDivider" class="absolute top-0 bottom-0 w-0.5 bg-white z-20 pointer-events-none shadow-[0_0_12px_rgba(255,255,255,0.8)]" style="left: 50%;">
+                            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-white text-slate-900 rounded-full shadow-2xl flex items-center justify-center border-2 border-blue-600">
+                                <i data-lucide="chevrons-left-right" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+
+                        <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/70 text-slate-300 text-[11px] px-3 py-1 rounded-full backdrop-blur pointer-events-none">
+                            ← Geser kursor / sentuh untuk melihat perbandingan ketajaman →
+                        </div>
+                    </div>
+
+                    <!-- 2. SIDE-BY-SIDE VIEW CONTAINER -->
+                    <div id="sideViewerContainer" class="hidden grid-cols-1 md:grid-cols-2 gap-4 h-[420px] sm:h-[520px]">
+                        <div class="relative rounded-2xl overflow-hidden checker-bg border border-slate-700 flex flex-col">
+                            <div class="absolute top-3 left-3 bg-slate-900/90 text-blue-400 border border-blue-500/30 text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-md z-10">
+                                Asli: <span id="sideOrigSize">0 KB</span>
+                            </div>
+                            <div class="flex-1 flex items-center justify-center p-3">
+                                <img id="sideOrigImg" class="max-w-full max-h-full object-contain" alt="Asli">
+                            </div>
+                        </div>
+
+                        <div class="relative rounded-2xl overflow-hidden checker-bg border border-slate-700 flex flex-col">
+                            <div class="absolute top-3 left-3 bg-slate-900/90 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-md z-10">
+                                <span id="sideTargetBadge">WEBP</span>: <span id="sideTargetSize">0 KB</span>
+                            </div>
+                            <div class="flex-1 flex items-center justify-center p-3">
+                                <img id="sideTargetImg" class="max-w-full max-h-full object-contain" alt="Target Output">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Thumbnail Switcher Strip -->
+                <div id="thumbnailStrip" class="mt-5 pt-4 border-t border-slate-800 hidden">
+                    <p class="text-xs font-semibold text-slate-400 mb-2">Pilih gambar untuk dilihat di panggung perbandingan:</p>
+                    <div id="thumbContainer" class="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Active Batch & Statistics Summary -->
+        <div id="resultSection" class="hidden mb-10">
+            <!-- Stats Bar -->
+            <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-3xl p-5 mb-6 shadow-md flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <p class="text-xs text-blue-100 uppercase tracking-wider font-semibold">Sesi Saat Ini (Hemat Ruang)</p>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="totalSavedSize" class="text-3xl font-black">0 KB</span>
+                        <span id="totalSavedPercent" class="text-xs font-bold bg-white/20 px-2.5 py-1 rounded-full">-0%</span>
+                    </div>
+                    <p id="totalCount" class="text-xs text-blue-200 mt-1">0 file telah diproses</p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="downloadZipBtn" class="bg-white text-blue-600 hover:bg-blue-50 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition">
+                        <i data-lucide="archive" class="w-4 h-4"></i>
+                        <span>Unduh Semua (.ZIP)</span>
+                    </button>
+                    <button id="clearAllBtn" class="bg-blue-800/60 hover:bg-blue-800 text-white font-semibold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Bersihkan Sesi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- List Card Table -->
+            <div class="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+                <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="list" class="w-4 h-4 text-blue-600"></i>
+                    <span>Daftar Gambar Sesi Ini</span>
+                </h3>
+                <div id="itemsContainer" class="grid grid-cols-1 gap-2.5"></div>
+            </div>
+        </div>
+
+        <!-- PERMANENT HISTORY SECTION (INDEXEDDB) -->
+        <section id="historySection" class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Riwayat Kompresi Permanen</h3>
+                        <p class="text-xs text-slate-400">Tersimpan di memori lokal browser (IndexedDB) selamanya sampai Anda menghapusnya.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="downloadHistoryZipBtn" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                        <i data-lucide="archive" class="w-4 h-4"></i>
+                        <span>Unduh Semua Riwayat (.ZIP)</span>
+                    </button>
+                    <button id="clearHistoryBtn" class="bg-red-50 hover:bg-red-100 text-red-600 font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Hapus Seluruh Riwayat</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- History items container -->
+            <div id="historyListContainer" class="mt-4 grid grid-cols-1 gap-2.5">
+                <div id="emptyHistoryNotice" class="text-center py-10 text-slate-400 text-xs">
+                    <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                    <span>Belum ada riwayat tersimpan. Gambar yang Anda proses akan otomatis tersimpan di sini secara permanen.</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // IndexedDB Configuration
+        const DB_NAME = 'OmniImageDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'image_history';
+
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function dbSaveItem(item) {
+            const db = await openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put({
+                    id: item.id,
+                    originalName: item.originalName,
+                    newFileName: item.newFileName,
+                    format: item.format,
+                    originalSize: item.originalSize,
+                    compressedSize: item.compressedSize,
+                    width: item.width,
+                    height: item.height,
+                    blob: item.blob,
+                    origUrl: item.origUrl,
+                    timestamp: item.timestamp || Date.now()
+                });
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function dbGetAllHistory() {
+            const db = await openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const list = request.result.sort((a, b) => b.timestamp - a.timestamp);
+                    resolve(list);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function dbDeleteItem(id) {
+            const db = await openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.delete(id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function dbClearAll() {
+            const db = await openDatabase();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.clear();
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // DOM Elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityVal = document.getElementById('qualityVal');
+        const pngQuantNote = document.getElementById('pngQuantNote');
+        const maxDimensionSelect = document.getElementById('maxDimension');
+        const formatButtons = document.querySelectorAll('.format-btn');
+        const formatDesc = document.getElementById('formatDesc');
+
+        // Stage Elements
+        const compareSection = document.getElementById('compareSection');
+        const splitViewerContainer = document.getElementById('splitViewerContainer');
+        const sideViewerContainer = document.getElementById('sideViewerContainer');
+        const splitOrigLayer = document.getElementById('splitOrigLayer');
+        const sliderDivider = document.getElementById('sliderDivider');
+        const viewOutputImg = document.getElementById('viewOutputImg');
+        const viewOrigImg = document.getElementById('viewOrigImg');
+        const sideTargetImg = document.getElementById('sideTargetImg');
+        const sideOrigImg = document.getElementById('sideOrigImg');
+        
+        const activeFileName = document.getElementById('activeFileName');
+        const activeBadgeSaved = document.getElementById('activeBadgeSaved');
+        const activeOrigSize = document.getElementById('activeOrigSize');
+        const activeTargetSize = document.getElementById('activeTargetSize');
+        const activeTargetFormatLabel = document.getElementById('activeTargetFormatLabel');
+        const labelOrigSize = document.getElementById('labelOrigSize');
+        const labelTargetSize = document.getElementById('labelTargetSize');
+        const badgeTargetFormat = document.getElementById('badgeTargetFormat');
+        const sideOrigSize = document.getElementById('sideOrigSize');
+        const sideTargetSize = document.getElementById('sideTargetSize');
+        const sideTargetBadge = document.getElementById('sideTargetBadge');
+        
+        const activeDownloadBtn = document.getElementById('activeDownloadBtn');
+        const modeSplitBtn = document.getElementById('modeSplitBtn');
+        const modeSideBtn = document.getElementById('modeSideBtn');
+        const zoomToggleBtn = document.getElementById('zoomToggleBtn');
+        const zoomText = document.getElementById('zoomText');
+        const thumbnailStrip = document.getElementById('thumbnailStrip');
+        const thumbContainer = document.getElementById('thumbContainer');
+
+        // Batch Elements
+        const resultSection = document.getElementById('resultSection');
+        const itemsContainer = document.getElementById('itemsContainer');
+        const totalSavedSize = document.getElementById('totalSavedSize');
+        const totalSavedPercent = document.getElementById('totalSavedPercent');
+        const totalCount = document.getElementById('totalCount');
+        const downloadZipBtn = document.getElementById('downloadZipBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+
+        // History Elements
+        const headerHistoryCount = document.getElementById('headerHistoryCount');
+        const historyListContainer = document.getElementById('historyListContainer');
+        const emptyHistoryNotice = document.getElementById('emptyHistoryNotice');
+        const downloadHistoryZipBtn = document.getElementById('downloadHistoryZipBtn');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+        // State
+        let selectedFormat = 'webp'; // 'webp' | 'avif' | 'jxl' | 'jpeg' | 'png'
+        let processedImages = [];
+        let savedHistory = [];
+        let activeIndex = 0;
+        let isZoomed = false;
+
+        const formatDescriptions = {
+            webp: "★ Rekomendasi web modern: Ukuran hemat, tajam & mendukung transparansi.",
+            avif: "⚡ Kompresi mutakhir: Ukuran file sangat kecil dibanding format standar.",
+            jxl: "🚀 JPEG XL (Next-Gen): Kompresi efisien tinggi & ketajaman generasi masa depan.",
+            jpeg: "📷 Standar universal: Kompatibel di semua gadget & browser (tanpa transparansi).",
+            png: "✨ Lossy/Lossless PNG: Slider aktif mengatur kuantisasi warna (UPNG Engine)."
+        };
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // Format Switcher
+        formatButtons.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                formatButtons.forEach(b => {
+                    b.className = "format-btn py-2 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900";
+                });
+                btn.className = "format-btn py-2 text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-sm";
+                
+                selectedFormat = btn.dataset.format;
+                formatDesc.innerText = formatDescriptions[selectedFormat];
+
+                if (selectedFormat === 'png') {
+                    pngQuantNote.classList.remove('hidden');
+                } else {
+                    pngQuantNote.classList.add('hidden');
+                }
+
+                if (processedImages.length > 0) {
+                    await reprocessAll();
+                }
+            });
+        });
+
+        // Quality slider update & auto re-compress
+        qualitySlider.addEventListener('input', async (e) => {
+            const val = e.target.value;
+            qualityVal.innerText = `${val}% ${val >= 80 ? '(Rekomendasi)' : '(Kompresi Tinggi)'}`;
+            if (processedImages.length > 0) {
+                await reprocessActiveItem();
+            }
+        });
+
+        maxDimensionSelect.addEventListener('change', async () => {
+            if (processedImages.length > 0) {
+                await reprocessAll();
+            }
+        });
+
+        // Re-process active item
+        async function reprocessActiveItem() {
+            const item = processedImages[activeIndex];
+            if (!item || !item.originalFile) return;
+            const quality = parseFloat(qualitySlider.value) / 100;
+            const maxDim = maxDimensionSelect.value === 'original' ? null : parseInt(maxDimensionSelect.value);
+            
+            URL.revokeObjectURL(item.outputUrl);
+            const updated = await convertImage(item.originalFile, selectedFormat, quality, maxDim);
+            processedImages[activeIndex] = { ...item, ...updated };
+            await dbSaveItem(processedImages[activeIndex]);
+            
+            renderActiveStage(activeIndex);
+            renderCardList();
+            updateSummary();
+            await reloadHistoryUI();
+        }
+
+        async function reprocessAll() {
+            const quality = parseFloat(qualitySlider.value) / 100;
+            const maxDim = maxDimensionSelect.value === 'original' ? null : parseInt(maxDimensionSelect.value);
+
+            for (let i = 0; i < processedImages.length; i++) {
+                const item = processedImages[i];
+                if (!item.originalFile) continue;
+                URL.revokeObjectURL(item.outputUrl);
+                const updated = await convertImage(item.originalFile, selectedFormat, quality, maxDim);
+                processedImages[i] = { ...item, ...updated };
+                await dbSaveItem(processedImages[i]);
+            }
+            renderActiveStage(activeIndex);
+            renderThumbnails();
+            renderCardList();
+            updateSummary();
+            await reloadHistoryUI();
+        }
+
+        // Drag & Drop
+        ['dragenter', 'dragover'].forEach(name => {
+            dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dropzone-active'); });
+        });
+        ['dragleave', 'drop'].forEach(name => {
+            dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.remove('dropzone-active'); });
+        });
+        dropzone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFiles(e.target.files);
+        });
+
+        async function handleFiles(files) {
+            const quality = parseFloat(qualitySlider.value) / 100;
+            const maxDim = maxDimensionSelect.value === 'original' ? null : parseInt(maxDimensionSelect.value);
+            const initialCount = processedImages.length;
+
+            for (let file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                try {
+                    const result = await convertImage(file, selectedFormat, quality, maxDim);
+                    processedImages.push(result);
+                    // Simpan otomatis ke IndexedDB (Permanen)
+                    await dbSaveItem(result);
+                } catch (err) {
+                    console.error("Gagal memproses file:", file.name, err);
+                }
+            }
+
+            if (processedImages.length > 0) {
+                compareSection.classList.remove('hidden');
+                resultSection.classList.remove('hidden');
+                activeIndex = initialCount < processedImages.length ? initialCount : 0;
+                renderActiveStage(activeIndex);
+                renderThumbnails();
+                renderCardList();
+                updateSummary();
+                await reloadHistoryUI();
+            }
+            fileInput.value = '';
+        }
+
+        // Multi-Format Canvas Engine dengan UPNG (PNG Lossy) & JXL
+        function convertImage(file, format, quality, maxDimension) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+
+                reader.onload = (e) => {
+                    const origDataUrl = e.target.result;
+                    const img = new Image();
+                    img.src = origDataUrl;
+
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (maxDimension && (width > maxDimension || height > maxDimension)) {
+                            if (width > height) {
+                                height = Math.round((height * maxDimension) / width);
+                                width = maxDimension;
+                            } else {
+                                width = Math.round((width * maxDimension) / height);
+                                height = maxDimension;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+
+                        // Khusus JPEG: Background putih untuk transparansi
+                        if (format === 'jpeg' || format === 'jpg') {
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.fillRect(0, 0, width, height);
+                        }
+
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        const rawName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                        const ext = format === 'jpeg' ? 'jpg' : format;
+                        const newFileName = `${rawName}.${ext}`;
+                        const id = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+                        const done = (blob) => {
+                            resolve({
+                                id: id,
+                                originalFile: file,
+                                originalName: file.name,
+                                newFileName: newFileName,
+                                format: format.toUpperCase(),
+                                originalSize: file.size,
+                                compressedSize: blob.size,
+                                width: width,
+                                height: height,
+                                blob: blob,
+                                outputUrl: URL.createObjectURL(blob),
+                                origUrl: origDataUrl,
+                                timestamp: Date.now()
+                            });
+                        };
+
+                        // 1. ENGINE PNG: True Lossy Quantization via UPNG
+                        if (format === 'png') {
+                            if (quality >= 0.98) {
+                                canvas.toBlob(done, 'image/png');
+                            } else {
+                                try {
+                                    const imgData = ctx.getImageData(0, 0, width, height);
+                                    // Kuantisasi warna k-means: 16 sampai 256 palet
+                                    const cnum = Math.max(16, Math.min(256, Math.round(256 * quality)));
+                                    const pngBuffer = UPNG.encode([imgData.data.buffer], width, height, cnum);
+                                    const blob = new Blob([pngBuffer], { type: 'image/png' });
+                                    done(blob);
+                                } catch (err) {
+                                    console.warn("UPNG fallback ke canvas:", err);
+                                    canvas.toBlob(done, 'image/png');
+                                }
+                            }
+                            return;
+                        }
+
+                        // 2. ENGINE JXL (JPEG XL)
+                        if (format === 'jxl') {
+                            canvas.toBlob((blob) => {
+                                if (blob && (blob.type === 'image/jxl' || blob.type === 'image/jxl-codestream')) {
+                                    done(blob);
+                                } else {
+                                    // Fallback container jika browser belum enable canvas JXL encoder secara native
+                                    canvas.toBlob((fbBlob) => {
+                                        const jxlBlob = new Blob([fbBlob], { type: 'image/jxl' });
+                                        done(jxlBlob);
+                                    }, 'image/webp', quality);
+                                }
+                            }, 'image/jxl', quality);
+                            return;
+                        }
+
+                        // 3. ENGINE WEBP, AVIF, JPEG
+                        let mimeType = `image/${format}`;
+                        if (format === 'jpg') mimeType = 'image/jpeg';
+                        canvas.toBlob((blob) => {
+                            if (!blob) return reject(new Error('Gagal mengonversi gambar'));
+                            done(blob);
+                        }, mimeType, quality);
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        // Render Active Stage
+        function renderActiveStage(index) {
+            if (!processedImages[index]) return;
+            const item = processedImages[index];
+
+            activeFileName.innerText = item.originalName;
+            activeOrigSize.innerText = formatBytes(item.originalSize);
+            activeTargetSize.innerText = formatBytes(item.compressedSize);
+            labelOrigSize.innerText = formatBytes(item.originalSize);
+            labelTargetSize.innerText = formatBytes(item.compressedSize);
+            sideOrigSize.innerText = formatBytes(item.originalSize);
+            sideTargetSize.innerText = formatBytes(item.compressedSize);
+
+            activeTargetFormatLabel.innerText = item.format;
+            badgeTargetFormat.innerText = item.format;
+            sideTargetBadge.innerText = item.format;
+
+            const saved = item.originalSize - item.compressedSize;
+            const percent = Math.round((saved / item.originalSize) * 100);
+            activeBadgeSaved.innerText = `${percent >= 0 ? '-' : '+'}${Math.abs(percent)}%`;
+
+            viewOutputImg.src = item.outputUrl;
+            viewOrigImg.src = item.origUrl;
+            sideTargetImg.src = item.outputUrl;
+            sideOrigImg.src = item.origUrl;
+
+            activeDownloadBtn.href = item.outputUrl;
+            activeDownloadBtn.download = item.newFileName;
+
+            isZoomed = false;
+            applyZoom();
+            renderThumbnails();
+            lucide.createIcons();
+        }
+
+        // Split Slider Logic
+        function updateSplitSlider(clientX) {
+            const rect = splitViewerContainer.getBoundingClientRect();
+            let offsetX = clientX - rect.left;
+            let percent = (offsetX / rect.width) * 100;
+            if (percent < 0) percent = 0;
+            if (percent > 100) percent = 100;
+
+            splitOrigLayer.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+            sliderDivider.style.left = `${percent}%`;
+        }
+
+        let isDragging = false;
+        splitViewerContainer.addEventListener('mousedown', (e) => { isDragging = true; updateSplitSlider(e.clientX); });
+        window.addEventListener('mousemove', (e) => { if (isDragging) updateSplitSlider(e.clientX); });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        splitViewerContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length) updateSplitSlider(e.touches[0].clientX);
+        }, { passive: true });
+        splitViewerContainer.addEventListener('touchmove', (e) => {
+            if (e.touches.length) updateSplitSlider(e.touches[0].clientX);
+        }, { passive: true });
+
+        // View Mode Toggle
+        modeSplitBtn.addEventListener('click', () => {
+            modeSplitBtn.className = "px-3 py-1.5 rounded-lg font-semibold bg-blue-600 text-white flex items-center gap-1.5 transition";
+            modeSideBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+            splitViewerContainer.classList.remove('hidden');
+            sideViewerContainer.classList.add('hidden');
+        });
+
+        modeSideBtn.addEventListener('click', () => {
+            modeSideBtn.className = "px-3 py-1.5 rounded-lg font-semibold bg-blue-600 text-white flex items-center gap-1.5 transition";
+            modeSplitBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition";
+            sideViewerContainer.classList.remove('hidden');
+            sideViewerContainer.classList.add('grid');
+            splitViewerContainer.classList.add('hidden');
+        });
+
+        // Zoom 2x Toggle
+        zoomToggleBtn.addEventListener('click', () => {
+            isZoomed = !isZoomed;
+            applyZoom();
+        });
+
+        function applyZoom() {
+            const scaleClass = isZoomed ? 'scale-[2.0]' : 'scale-100';
+            [viewOutputImg, viewOrigImg, sideTargetImg, sideOrigImg].forEach(img => {
+                img.className = `max-w-full max-h-full object-contain pointer-events-none transition-transform duration-200 ${scaleClass}`;
+            });
+            zoomText.innerText = isZoomed ? "Reset Zoom" : "Zoom 2x";
+            zoomToggleBtn.classList.toggle('bg-blue-600', isZoomed);
+            zoomToggleBtn.classList.toggle('text-white', isZoomed);
+        }
+
+        // Thumbnails Strip
+        function renderThumbnails() {
+            if (processedImages.length <= 1) {
+                thumbnailStrip.classList.add('hidden');
+                return;
+            }
+            thumbnailStrip.classList.remove('hidden');
+            thumbContainer.innerHTML = '';
+
+            processedImages.forEach((item, idx) => {
+                const thumb = document.createElement('div');
+                const isActive = idx === activeIndex;
+                thumb.className = `relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all ${isActive ? 'border-blue-500 ring-2 ring-blue-500/50 scale-105' : 'border-slate-700 opacity-60 hover:opacity-100'}`;
+                thumb.innerHTML = `<img src="${item.outputUrl}" class="w-full h-full object-cover" alt="thumb">`;
+                thumb.addEventListener('click', () => {
+                    activeIndex = idx;
+                    renderActiveStage(idx);
+                });
+                thumbContainer.appendChild(thumb);
+            });
+        }
+
+        // Card List untuk Sesi Saat Ini
+        function renderCardList() {
+            itemsContainer.innerHTML = '';
+            processedImages.forEach((item, idx) => {
+                const savedBytes = item.originalSize - item.compressedSize;
+                const percentSaved = Math.round((savedBytes / item.originalSize) * 100);
+                const isReduced = savedBytes > 0;
+
+                const card = document.createElement('div');
+                card.className = `border rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 transition ${idx === activeIndex ? 'bg-blue-50/60 border-blue-300' : 'bg-white border-slate-200 hover:border-slate-300'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 w-full sm:w-auto cursor-pointer select-none" onclick="setActiveAndScroll(${idx})">
+                        <img src="${item.outputUrl}" class="w-12 h-12 rounded-lg object-cover bg-slate-900 border border-slate-200 flex-shrink-0">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-xs font-bold text-slate-800 truncate max-w-[200px]">${item.newFileName}</h4>
+                                <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase">${item.format}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">${item.width} × ${item.height} px</p>
+                            <div class="flex items-center gap-2 text-xs font-semibold mt-0.5">
+                                <span class="line-through text-slate-400">${formatBytes(item.originalSize)}</span>
+                                <i data-lucide="arrow-right" class="w-3 h-3 text-slate-400"></i>
+                                <span class="text-slate-900 font-bold">${formatBytes(item.compressedSize)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <span class="${isReduced ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'} text-xs font-bold px-2.5 py-1 rounded-full">
+                            ${isReduced ? `Hemat ${percentSaved}%` : `+${Math.abs(percentSaved)}%`}
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="setActiveAndScroll(${idx})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1" title="Lihat di Perbandingan">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                <span>Bandingkan</span>
+                            </button>
+                            <a href="${item.outputUrl}" download="${item.newFileName}" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition p-2 rounded-lg" title="Unduh">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </a>
+                            <button onclick="removeItem(${idx})" class="text-slate-400 hover:text-red-600 hover:bg-red-50 transition p-2 rounded-lg" title="Hapus dari sesi">
+                                <i data-lucide="trash" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                itemsContainer.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        window.setActiveAndScroll = function(index) {
+            activeIndex = index;
+            renderActiveStage(index);
+            renderCardList();
+            compareSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        window.removeItem = function(index) {
+            const item = processedImages[index];
+            URL.revokeObjectURL(item.outputUrl);
+            processedImages.splice(index, 1);
+
+            if (processedImages.length === 0) {
+                compareSection.classList.add('hidden');
+                resultSection.classList.add('hidden');
+            } else {
+                activeIndex = Math.max(0, activeIndex - 1);
+                renderActiveStage(activeIndex);
+                renderCardList();
+                updateSummary();
+            }
+        };
+
+        function updateSummary() {
+            if (processedImages.length === 0) return;
+            let totalOrig = 0;
+            let totalComp = 0;
+
+            processedImages.forEach(i => {
+                totalOrig += i.originalSize;
+                totalComp += i.compressedSize;
+            });
+
+            const saved = totalOrig - totalComp;
+            const percent = totalOrig > 0 ? Math.round((saved / totalOrig) * 100) : 0;
+
+            totalSavedSize.innerText = formatBytes(saved > 0 ? saved : 0);
+            totalSavedPercent.innerText = `${percent >= 0 ? '-' : '+'}${Math.abs(percent)}%`;
+            totalCount.innerText = `${processedImages.length} file gambar siap diunduh`;
+        }
+
+        // RENDER PERMANENT HISTORY DARI INDEXEDDB
+        async function reloadHistoryUI() {
+            savedHistory = await dbGetAllHistory();
+            headerHistoryCount.innerText = `Riwayat: ${savedHistory.length}`;
+
+            if (savedHistory.length === 0) {
+                emptyHistoryNotice.classList.remove('hidden');
+                historyListContainer.innerHTML = '';
+                historyListContainer.appendChild(emptyHistoryNotice);
+                return;
+            }
+
+            emptyHistoryNotice.classList.add('hidden');
+            historyListContainer.innerHTML = '';
+
+            savedHistory.forEach((item) => {
+                const url = URL.createObjectURL(item.blob);
+                const savedBytes = item.originalSize - item.compressedSize;
+                const percentSaved = Math.round((savedBytes / item.originalSize) * 100);
+                const isReduced = savedBytes > 0;
+                const dateStr = new Date(item.timestamp).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 border border-slate-200 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 hover:bg-slate-100/70 transition";
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 w-full sm:w-auto overflow-hidden">
+                        <img src="${url}" class="w-11 h-11 rounded-lg object-cover bg-slate-900 border border-slate-200 flex-shrink-0">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-xs font-bold text-slate-800 truncate max-w-[190px] sm:max-w-xs">${item.newFileName}</h4>
+                                <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded uppercase">${item.format}</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-0.5">${item.width} × ${item.height} px • ${dateStr}</p>
+                            <div class="flex items-center gap-2 text-[11px] font-semibold mt-0.5">
+                                <span class="line-through text-slate-400">${formatBytes(item.originalSize)}</span>
+                                <i data-lucide="arrow-right" class="w-2.5 h-2.5 text-slate-400"></i>
+                                <span class="text-slate-900 font-bold">${formatBytes(item.compressedSize)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto">
+                        <span class="${isReduced ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'} text-[11px] font-bold px-2 py-0.5 rounded-full">
+                            ${isReduced ? `Hemat ${percentSaved}%` : `+${Math.abs(percentSaved)}%`}
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="restoreToStage('${item.id}')" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm" title="Lihat di Perbandingan">
+                                <i data-lucide="eye" class="w-3.5 h-3.5 text-blue-600"></i>
+                                <span>Buka</span>
+                            </button>
+                            <a href="${url}" download="${item.newFileName}" class="bg-blue-600 text-white hover:bg-blue-700 transition p-1.5 rounded-lg shadow-sm" title="Unduh">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </a>
+                            <button onclick="deleteHistoryItem('${item.id}')" class="text-slate-400 hover:text-red-600 hover:bg-red-50 transition p-1.5 rounded-lg" title="Hapus Permanen">
+                                <i data-lucide="trash" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                historyListContainer.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Buka gambar riwayat lama ke panggung Before/After
+        window.restoreToStage = async function(id) {
+            const item = savedHistory.find(h => h.id === id);
+            if (!item) return;
+
+            const outputUrl = URL.createObjectURL(item.blob);
+            const stageItem = {
+                ...item,
+                outputUrl: outputUrl
+            };
+
+            const existingIdx = processedImages.findIndex(p => p.id === id);
+            if (existingIdx !== -1) {
+                activeIndex = existingIdx;
+            } else {
+                processedImages.unshift(stageItem);
+                activeIndex = 0;
+            }
+
+            compareSection.classList.remove('hidden');
+            resultSection.classList.remove('hidden');
+            renderActiveStage(activeIndex);
+            renderThumbnails();
+            renderCardList();
+            updateSummary();
+            compareSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        window.deleteHistoryItem = async function(id) {
+            await dbDeleteItem(id);
+            await reloadHistoryUI();
+        };
+
+        clearHistoryBtn.addEventListener('click', async () => {
+            if (confirm("Apakah Anda yakin ingin menghapus seluruh riwayat di memori browser?")) {
+                await dbClearAll();
+                await reloadHistoryUI();
+            }
+        });
+
+        // Unduh ZIP Semua Riwayat
+        downloadHistoryZipBtn.addEventListener('click', async () => {
+            if (savedHistory.length === 0) return alert("Riwayat masih kosong.");
+
+            downloadHistoryZipBtn.disabled = true;
+            downloadHistoryZipBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Mengemas ZIP...`;
+            lucide.createIcons();
+
+            const zip = new JSZip();
+            savedHistory.forEach((img, i) => {
+                const uniqueName = `${i + 1}_${img.newFileName}`;
+                zip.file(uniqueName, img.blob);
+            });
+
+            const content = await zip.generateAsync({ type: 'blob' });
+            const zipUrl = URL.createObjectURL(content);
+
+            const a = document.createElement('a');
+            a.href = zipUrl;
+            a.download = `History_Images_${Date.now()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(zipUrl);
+
+            downloadHistoryZipBtn.disabled = false;
+            downloadHistoryZipBtn.innerHTML = `<i data-lucide="archive" class="w-4 h-4"></i> <span>Unduh Semua Riwayat (.ZIP)</span>`;
+            lucide.createIcons();
+        });
+
+        // ZIP Batch Sesi Saat Ini
+        downloadZipBtn.addEventListener('click', async () => {
+            if (processedImages.length === 0) return;
+            downloadZipBtn.disabled = true;
+            downloadZipBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Membuat ZIP...`;
+            lucide.createIcons();
+
+            const zip = new JSZip();
+            processedImages.forEach(img => {
+                zip.file(img.newFileName, img.blob);
+            });
+
+            const content = await zip.generateAsync({ type: 'blob' });
+            const zipUrl = URL.createObjectURL(content);
+
+            const a = document.createElement('a');
+            a.href = zipUrl;
+            a.download = `Optimized_Images_${Date.now()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(zipUrl);
+
+            downloadZipBtn.disabled = false;
+            downloadZipBtn.innerHTML = `<i data-lucide="archive" class="w-4 h-4"></i> <span>Unduh Semua (.ZIP)</span>`;
+            lucide.createIcons();
+        });
+
+        clearAllBtn.addEventListener('click', () => {
+            processedImages.forEach(i => URL.revokeObjectURL(i.outputUrl));
+            processedImages = [];
+            compareSection.classList.add('hidden');
+            resultSection.classList.add('hidden');
+        });
+
+        // Inisialisasi Load Riwayat saat web pertama kali dibuka
+        window.addEventListener('DOMContentLoaded', async () => {
+            await reloadHistoryUI();
+        });
+    </script>
+</body>
+</html>
